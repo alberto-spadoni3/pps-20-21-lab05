@@ -1,7 +1,8 @@
 package u05lab.code
 
 import scala.annotation.tailrec
-import scala.language.postfixOps // silence warnings
+import scala.language.postfixOps
+import scala.util.matching.Regex.Match // silence warnings
 
 sealed trait List[A] {
 
@@ -129,15 +130,21 @@ trait ListImplementation[A] extends List[A] {
 
   override def partition(pred: A => Boolean): (List[A], List[A]) = {
     @tailrec
-    def _partition(pTrue: List[A], pFalse: List[A], l:List[A]): (List[A], List[A]) = l match {
-      case h :: t if pred(h) => _partition(h :: pTrue, pFalse, t)
-      case h :: t => _partition(pTrue, h :: pFalse, t)
+    def _partition(l:List[A], pTrue: List[A] = List.nil, pFalse: List[A] = List.nil): (List[A], List[A]) = l match {
+      case h :: t if pred(h) => _partition(t, h :: pTrue, pFalse)
+      case h :: t => _partition(t, pTrue, h :: pFalse)
       case _ => (pTrue.reverse(), pFalse.reverse())
     }
-    _partition(List.nil, List.nil, this)
+    _partition(this)
   }
 
-  override def span(pred: A => Boolean): (List[A],List[A]) = ???
+  override def span(pred: A => Boolean): (List[A],List[A]) = {
+    def _span(l:List[A], pTrue: List[A] = List.nil): (List[A], List[A]) = l match {
+      case h:: t if pred(h) => _span(t, h :: pTrue)
+      case h :: t => (pTrue.reverse(), h :: t)
+    }
+    _span(this)
+  }
 
   /**
     *
