@@ -115,9 +115,27 @@ trait ListImplementation[A] extends List[A] {
     case Nil() => Nil()
   }
 
-  override def zipRight: List[(A,Int)] = ??? // questions: what is the type of keyword ???
+  override def zipRight: List[(A,Int)] = {
+    @tailrec
+    def _zipRight(l: List[A], k:Int = 0, res: List[(A, Int)] = List.nil): List[(A, Int)] = l match {
+      case h :: t => _zipRight(t, k + 1, (h, k) :: res)
+      case _ => res
+    }
+    _zipRight(this).reverse()
 
-  override def partition(pred: A => Boolean): (List[A],List[A]) = ???
+    /*var k = -1
+    this.map(elem => {k += 1; (elem, k)})*/
+  }
+
+  override def partition(pred: A => Boolean): (List[A], List[A]) = {
+    @tailrec
+    def _partition(pTrue: List[A], pFalse: List[A], l:List[A]): (List[A], List[A]) = l match {
+      case h :: t if pred(h) => _partition(h :: pTrue, pFalse, t)
+      case h :: t => _partition(pTrue, h :: pFalse, t)
+      case _ => (pTrue.reverse(), pFalse.reverse())
+    }
+    _partition(List.nil, List.nil, this)
+  }
 
   override def span(pred: A => Boolean): (List[A],List[A]) = ???
 
