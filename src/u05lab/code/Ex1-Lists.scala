@@ -5,7 +5,6 @@ import scala.language.postfixOps
 import scala.util.matching.Regex.Match // silence warnings
 
 sealed trait List[A] {
-
   def head: Option[A]
 
   def tail: Option[List[A]]
@@ -19,6 +18,8 @@ sealed trait List[A] {
   def filter(predicate: (A) => Boolean): List[A]
 
   def map[B](fun: (A) => B): List[B]
+
+  def size: Int
 
   def toSeq: Seq[A]
 
@@ -39,6 +40,8 @@ sealed trait List[A] {
   def reduce(op: (A,A)=>A): A
 
   def takeRight(n: Int): List[A]
+
+  def collect[B](pf: PartialFunction[A, B]): List[B]
 
   // right-associative construction: 10 :: 20 :: 30 :: Nil()
   def ::(head: A): List[A] = Cons(head,this)
@@ -63,36 +66,48 @@ object :: {
 
 // List algorithms
 trait ListImplementation[A] extends List[A] {
-
   override def head: Option[A] = this match {
     case h :: t => Some(h)
     case _ => None
   }
+
   override def tail: Option[List[A]] = this match {
     case h :: t => Some(t)
     case _ => None
   }
+
   override def append(list: List[A]): List[A] = this match {
     case h :: t => h :: (t append list)
     case _ => list
   }
-  override def foreach(consumer: (A)=>Unit): Unit = this match {
-    case h :: t => {consumer(h); t foreach consumer}
+
+  override def foreach(consumer: (A) => Unit): Unit = this match {
+    case h :: t => {
+      consumer(h); t foreach consumer
+    }
     case _ => None
   }
+
   override def get(pos: Int): Option[A] = this match {
     case h :: t if pos == 0 => Some(h)
-    case h :: t if pos > 0 => t get (pos-1)
+    case h :: t if pos > 0 => t get (pos - 1)
     case _ => None
   }
+
   override def filter(predicate: (A) => Boolean): List[A] = this match {
     case h :: t if (predicate(h)) => h :: (t filter predicate)
     case _ :: t => (t filter predicate)
     case _ => Nil()
   }
+
   override def map[B](fun: (A) => B): List[B] = this match {
     case h :: t => fun(h) :: (t map fun)
     case _ => Nil()
+  }
+
+  override def size: Int = this match {
+    case h :: t => 1 + t.size
+    case _ => 0
   }
 
   override def toSeq: Seq[A] = this match {
@@ -100,28 +115,29 @@ trait ListImplementation[A] extends List[A] {
     case _ => Seq()
   }
 
-  override def foldLeft[B](acc: B)(f: (B,A)=>B): B = this match {
-    case Cons(h,t) => t.foldLeft(f(acc,h))(f)
+  override def foldLeft[B](acc: B)(f: (B, A) => B): B = this match {
+    case Cons(h, t) => t.foldLeft(f(acc, h))(f)
     case Nil() => acc
   }
 
   override def foldRight[B](acc: B)(f: (A, B) => B): B =
-    this.reverse().foldLeft(acc)((acc,elem) => f(elem,acc))
+    this.reverse().foldLeft(acc)((acc, elem) => f(elem, acc))
 
   override def reverse(): List[A] =
-    this.foldLeft(Nil[A].asInstanceOf[List[A]])((acc,elem) => Cons(elem,acc))
+    this.foldLeft(Nil[A]().asInstanceOf[List[A]])((acc, elem) => Cons(elem, acc))
 
   override def flatMap[B](f: A => List[B]): List[B] = this match {
-    case Cons(h,t) => f(h).append(t.flatMap(f))
+    case Cons(h, t) => f(h).append(t.flatMap(f))
     case Nil() => Nil()
   }
 
-  override def zipRight: List[(A,Int)] = {
+  override def zipRight: List[(A, Int)] = {
     @tailrec
-    def _zipRight(l: List[A], k:Int = 0, res: List[(A, Int)] = List.nil): List[(A, Int)] = l match {
+    def _zipRight(l: List[A], k: Int = 0, res: List[(A, Int)] = List.nil): List[(A, Int)] = l match {
       case h :: t => _zipRight(t, k + 1, (h, k) :: res)
       case _ => res
     }
+
     _zipRight(this).reverse()
 
     /*var k = -1
@@ -130,19 +146,22 @@ trait ListImplementation[A] extends List[A] {
 
   override def partition(pred: A => Boolean): (List[A], List[A]) = {
     @tailrec
-    def _partition(l:List[A], pTrue: List[A] = List.nil, pFalse: List[A] = List.nil): (List[A], List[A]) = l match {
+    def _partition(l: List[A], pTrue: List[A] = List.nil, pFalse: List[A] = List.nil): (List[A], List[A]) = l match {
       case h :: t if pred(h) => _partition(t, h :: pTrue, pFalse)
       case h :: t => _partition(t, pTrue, h :: pFalse)
       case _ => (pTrue.reverse(), pFalse.reverse())
     }
+
     _partition(this)
   }
 
-  override def span(pred: A => Boolean): (List[A],List[A]) = {
-    def _span(l:List[A], pTrue: List[A] = List.nil): (List[A], List[A]) = l match {
-      case h:: t if pred(h) => _span(t, h :: pTrue)
+  override def span(pred: A => Boolean): (List[A], List[A]) = {
+    @tailrec
+    def _span(l: List[A], pTrue: List[A] = List.nil): (List[A], List[A]) = l match {
+      case h :: t if pred(h) => _span(t, h :: pTrue)
       case h :: t => (pTrue.reverse(), h :: t)
     }
+
     _span(this)
   }
 
@@ -150,9 +169,21 @@ trait ListImplementation[A] extends List[A] {
     *
     * @throws UnsupportedOperationException if the list is empty
     */
-  override def reduce(op: (A,A)=>A): A = ???
+  override def reduce(op: (A, A) => A): A = ???
 
-  override def takeRight(n: Int): List[A] = ???
+  // List(12,23,32,2, nil)
+  override def takeRight(n: Int): List[A] = this match {
+    case h :: t if n > this.size => throw new IllegalArgumentException
+    case h :: t if this.size - n > 1 => t.takeRight(n)
+    case h :: t => t
+    case Nil() => Nil()
+  }
+
+  override def collect[B](pf: PartialFunction[A, B]): List[B] = this match {
+    case h :: t if pf.isDefinedAt(h) => Cons(pf(h), t.collect(pf))
+    case h :: t => t.collect(pf)
+    case _ => Nil()
+  }
 }
 
 // Factories
@@ -201,12 +232,17 @@ object ListsTest extends App {
   println(l.span(_<15)) // ( Cons(10,Nil()), Cons(20,Cons(30,Cons(40,Nil()))) )
 
   // Ex. 4: reduce
-  println(l.reduce(_+_)) // 100
-  try { List[Int]().reduce(_+_); assert(false) } catch { case _:UnsupportedOperationException => }
+//  println(l.reduce(_+_)) // 100
+//  try {
+//    List[Int]().reduce(_+_);
+//    assert(false)
+//  } catch {
+//    case _:UnsupportedOperationException =>
+//  }
 
   // Ex. 5: takeRight
   println(l.takeRight(2)) // Cons(30,Cons(40,Nil()))
 
   // Ex. 6: collect
-  // println(l.collect { case x if x<15 || x>35 => x-1 }) // Cons(9, Cons(39, Nil()))
+  println(l.collect { case x if x<15 || x>35 => x-1 }) // Cons(9, Cons(39, Nil()))
 }
