@@ -15,7 +15,7 @@ class Ex2Tests {
         assertEquals(Kind.RETIRED.toString, erf.retired().toString)
         assertEquals("SUCCEEDED with " + evaluation, erf.succeeded(evaluation).toString)
         assertEquals("SUCCEEDED with 30" + "L", erf.succeededCumLaude().toString)
-        // assertThrows(classOf[IllegalArgumentException], () => erf.succeeded(3))
+        // assertThrows(classOf[IllegalArgumentException], () => erf.succeeded(300))
         assertTrue(erf.succeededCumLaude().cumLaude())
         assertEquals(Option(evaluation), erf.succeeded(evaluation).getEvaluation())
     }

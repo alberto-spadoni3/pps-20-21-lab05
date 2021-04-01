@@ -90,6 +90,7 @@ case class ExamResultFactoryImpl() extends ExamResultFactory {
 
     override def failed(): ExamResult = new AbstractExamResult(){}
     override def retired(): ExamResult = new AbstractExamResult(Kind.RETIRED){}
+    @throws(classOf[java.lang.IllegalArgumentException])
     override def succeeded(evaluation: Int): ExamResult = new AbstractSucceededExam(evaluation){}
     override def succeededCumLaude(): ExamResult = new AbstractSucceededExam(evaluation = 30) {
         override def cumLaude(): Boolean = true
