@@ -77,7 +77,7 @@ case class ExamResultFactoryImpl() extends ExamResultFactory {
       * @throws IllegalArgumentException - when the evaluation is not in a valid range
       */
     class SucceededExamImpl(private val evaluation: Int) extends ExamResultImpl(Kind.SUCCEEDED) {
-        // vValidating the given evaluation
+        // validating the given evaluation
         if (evaluation <= 18 && evaluation >= 30)
             throw new IllegalArgumentException("Evaluation must be in the range 18..30")
 
